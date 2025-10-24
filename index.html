@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Summary: The Procrastination Equation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.1/chart.min.js"></script>
+    <!-- Chosen Palette: Stone & Indigo -->
+    <!--
+    Application Structure Plan:
+    A tabbed interface to separate the book's main concepts.
+    1.  'Key Concepts': A static, readable summary of the book's premise (scientific approach, strategies).
+    2.  'Core Equation': The main interactive part. A multi-column layout.
+        -   Left column: Contains the four variable inputs (E, V, I, D) as percentage-based number fields. A "Calculate" button makes the update explicit. A "Get AI Strategies" button appears if the score is low.
+        -   Right column: Contains the Chart.js bar chart that visualizes the "Motivation" score based on the inputs.
+        -   Below inputs/chart: A reference guide ("What Does Your Motivation Score Mean?") to give context to the calculated score.
+        -   AI Section: A section appears at the bottom to show AI-generated strategies.
+    3.  'Key Strategies': A scannable list of actionable advice from the book.
+    This structure was chosen to first introduce the concepts (Tab 1), then let the user interactively explore the core formula (Tab 2), and finally provide actionable takeaways (Tab 3), creating a logical flow from theory to practice.
+    -->
+    <!--
+    Visualization & Content Choices:
+    1.  Info: The four variables of the Procrastination Equation.
+        Goal: Allow user exploration and "what-if" analysis.
+        Viz/Method: 4 number inputs and a "Calculate" button.
+        Interaction: User types in values (10-100), then clicks the button.
+        Justification: More explicit and controllable than sliders. The button confirms user intent.
+        Library: HTML / JS.
+    2.  Info: The resulting "Motivation" score.
+        Goal: Show the output of the equation dynamically.
+        Viz/Method: A single-bar bar chart.
+        Interaction: Chart updates via JS when the "Calculate" button is clicked.
+        Justification: A bar chart is a simple, clear way to show a single magnitude (the score).
+        Library: Chart.js (on Canvas).
+    3.  Info: Reference for the score.
+        Goal: Give context to the chart's value.
+        Viz/Method: Styled HTML/Tailwind "cards" in a grid.
+        Interaction: Static text.
+        Justification: Clearly segments the reference info for high, medium, and low scores.
+        Library: HTML / Tailwind.
+    4.  Info: Personalized strategies for low motivation.
+        Goal: Provide actionable help based on the user's specific inputs.
+        Viz/Method: A new section with a loading spinner and text area.
+        Interaction: Click a button to trigger a Gemini API call. The results are displayed as a list.
+        Justification: Uses AI to provide personalized, dynamic feedback, adding significant value.
+        Library: JS (fetch API).
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom styles for Tailwind tabs */
+        .tab-btn {
+            @apply px-4 py-3 font-medium text-sm text-stone-500 border-b-2 border-transparent hover:border-stone-300 hover:text-stone-700 whitespace-nowrap;
+        }
+        .tab-btn.active {
+            @apply border-indigo-500 text-indigo-600;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        /* Ensure chart container respects its parent's height and is responsive */
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 350px;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 400px;
+            }
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="h-full bg-stone-50 text-stone-800 antialiased">
+    <div class="flex flex-col min-h-screen">
+        <!-- Header -->
+        <header class="bg-white shadow-sm border-b border-stone-200">
+            <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
+                <h1 class="text-3xl font-bold text-indigo-700">The Procrastination Equation</h1>
+                <p class="mt-1 text-lg text-stone-600">An Interactive Guide to Piers Steel's Framework</p>
+            </div>
+        </header>
+
+        <!-- Tab Navigation -->
+        <div id="tabs-container" class="bg-white shadow-sm sticky top-0 z-10">
+            <nav class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 -mb-px flex space-x-6" aria-label="Tabs">
+                <button class="tab-btn active" data-tab="tab-concepts">Key Concepts</button>
+                <button class="tab-btn" data-tab="tab-equation">Core Equation</button>
+                <button class="tab-btn" data-tab="tab-strategies">Key Strategies</button>
+            </nav>
+        </div>
+
+        <!-- Tab Content -->
+        <main id="tab-content-container" class="flex-grow max-w-5xl mx-auto w-full p-4 sm:p-6 lg:p-8">
+
+            <!-- Tab 1: Key Concepts -->
+            <div id="tab-concepts" class="tab-content active">
+                <div class="bg-white p-6 sm:p-8 rounded-lg shadow-sm border border-stone-200">
+                    <h2 class="text-2xl font-semibold text-stone-800 mb-4">Why This Book is Effective</h2>
+                    <div class="space-y-4 text-stone-700">
+                        <div>
+                            <h3 class="font-semibold text-indigo-600">Scientific Approach</h3>
+                            <p>Based on extensive research, this book delves into the psychology and neuroscience behind procrastination, offering a comprehensive understanding of why we delay tasks.</p>
+                        </div>
+                        <div>
+                            <h3 class="font-semibold text-indigo-600">Practical Strategies</h3>
+                            <p>It provides actionable techniques to combat procrastination, such as adjusting expectations, managing emotions, and creating environments conducive to focus.</p>
+                        </div>
+                        <div>
+                            <h3 class="font-semibold text-indigo-600">Evidence-Based</h3>
+                            <p>The strategies are grounded in empirical studies, ensuring they are both effective and reliable.</p>
+                        </div>
+                    </div>
+
+                    <h2 class="text-2xl font-semibold text-stone-800 mt-8 mb-4">What You'll Gain</h2>
+                    <ul class="list-disc list-inside space-y-2 text-stone-700">
+                        <li>A deeper understanding of the root causes of procrastination.</li>
+                        <li>Tools to enhance self-control and motivation.</li>
+                        <li>Methods to structure your environment and tasks to minimize distractions.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Tab 2: Core Equation -->
+            <div id="tab-equation" class="tab-content">
+                <div class="bg-white p-6 sm:p-8 rounded-lg shadow-sm border border-stone-200">
+                    <h2 class="text-2xl font-semibold text-stone-800 mb-2">The Motivation Formula</h2>
+                    <p class="text-stone-600 mb-6">Procrastination is driven by a simple formula. Your motivation to do a task is determined by these four variables. Change the inputs and click "Calculate" to see how your motivation score changes.</p>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+                        <!-- Inputs Column -->
+                        <div class="space-y-5">
+                            <div class="p-4 bg-stone-50 border border-stone-200 rounded-lg">
+                                <h3 class="text-lg font-semibold text-center text-indigo-700">(Expectancy × Value)</h3>
+                                <hr class="my-2 border-indigo-200">
+                                <h3 class="text-lg font-semibold text-center text-red-600">(Impulsiveness × Delay)</h3>
+                            </div>
+
+                            <div>
+                                <label for="input-e" class="flex justify-between font-medium text-stone-700">Expectancy</label>
+                                <p class="text-sm text-stone-500 mb-1">What's your confidence you'll succeed?</p>
+                                <div class="relative">
+                                    <input id="input-e" type="number" min="10" max="100" step="1" value="50" class="w-full p-2 border border-stone-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 pr-8">
+                                    <span class="absolute inset-y-0 right-0 flex items-center pr-3 text-stone-500 pointer-events-none">%</span>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label for="input-v" class="flex justify-between font-medium text-stone-700">Value</label>
+                                <p class="text-sm text-stone-500 mb-1">How rewarding or enjoyable is the task?</p>
+                                <div class="relative">
+                                    <input id="input-v" type="number" min="10" max="100" step="1" value="50" class="w-full p-2 border border-stone-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 pr-8">
+                                    <span class="absolute inset-y-0 right-0 flex items-center pr-3 text-stone-500 pointer-events-none">%</span>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label for="input-i" class="flex justify-between font-medium text-stone-700">Impulsiveness</label>
+                                <p class="text-sm text-stone-500 mb-1">How easily are you distracted?</p>
+                                <div class="relative">
+                                    <input id="input-i" type="number" min="10" max="100" step="1" value="50" class="w-full p-2 border border-stone-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 pr-8">
+                                    <span class="absolute inset-y-0 right-0 flex items-center pr-3 text-stone-500 pointer-events-none">%</span>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label for="input-d" class="flex justify-between font-medium text-stone-700">Delay</label>
+                                <p class="text-sm text-stone-500 mb-1">How far in the future is the reward?</p>
+                                <div class="relative">
+                                    <input id="input-d" type="number" min="10" max="100" step="1" value="50" class="w-full p-2 border border-stone-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 pr-8">
+                                    <span class="absolute inset-y-0 right-0 flex items-center pr-3 text-stone-500 pointer-events-none">%</span>
+                                </div>
+                            </div>
+
+                            <button id="calculate-btn" class="w-full bg-indigo-600 text-white font-semibold py-3 px-4 rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors">
+                                Calculate Motivation
+                            </button>
+                            <button id="ai-strategy-btn" class="w-full bg-gradient-to-r from-purple-500 to-indigo-600 text-white font-semibold py-3 px-4 rounded-md shadow-sm hover:from-purple-600 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all hidden mt-4">
+                                ✨ Get AI-Powered Strategies
+                            </button>
+                        </div>
+
+                        <!-- Chart Column -->
+                        <div class="chart-container">
+                            <canvas id="motivation-chart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Reference Section -->
+                    <div class="mt-12 pt-8 border-t border-stone-200">
+                        <h3 class="text-xl font-semibold text-stone-800 mb-4">What Does Your Motivation Score Mean?</h3>
+                        <p class="text-stone-600 mb-6">Use this as a general guide to understand your score. The key isn't the exact number, but knowing *why* it's high or low based on your inputs. The average, everyday task often scores around <strong>1.0</strong>.</p>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <!-- High -->
+                            <div class="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+                                <h4 class="font-semibold text-emerald-800">Score: 5.0+ (High)</h4>
+                                <p class="text-emerald-700 text-sm mt-1">You're highly motivated! You likely feel a strong urge to start this task immediately. The reward feels clear and achievable.</p>
+                            </div>
+                            <!-- Medium -->
+                            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                <h4 class="font-semibold text-blue-800">Score: 1.0 - 4.9 (Moderate)</h4>
+                                <p class="text-blue-700 text-sm mt-1">You're in the zone. You'll probably get this task done without too much struggle, though you might need a small nudge to start.</p>
+                            </div>
+                            <!-- Low -->
+                            <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                                <h4 class="font-semibold text-yellow-800">Score: 0.5 - 0.9 (Tipping Point)</h4>
+                                <p class="text-yellow-700 text-sm mt-1">You could go either way. A small tweak to one of the factors (like boosting 'Value') could be all you need to get started.</p>
+                            </div>
+                            <!-- Very Low -->
+                            <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                                <h4 class="font-semibold text-red-800">Score: &lt; 0.5 (Low)</h4>
+                                <p class="text-red-700 text-sm mt-1">Procrastination is very likely. The task feels overwhelming, not worth it, or too far away. This is where you need to apply the book's strategies!</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- AI Strategy Section -->
+                    <div id="ai-strategy-section" class="mt-12 pt-8 border-t border-stone-200 hidden">
+                        <h3 class="text-xl font-semibold text-stone-800 mb-4">✨ AI-Powered Strategy Guide</h3>
+                        <p class="text-stone-600 mb-6">Based on your *current* inputs, your motivation is low. Here are some personalized strategies from Gemini to help you get started by targeting your weakest points.</p>
+
+                        <!-- Loading Spinner -->
+                        <div id="ai-loading" class="flex justify-center items-center h-24 hidden">
+                            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+                        </div>
+
+                        <!-- AI Results -->
+                        <div id="ai-results" class="bg-indigo-50 border border-indigo-200 rounded-lg p-6 min-h-[10rem]">
+                            <!-- Content will be injected here by JS -->
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Tab 3: Key Strategies -->
+            <div id="tab-strategies" class="tab-content">
+                <div class="bg-white p-6 sm:p-8 rounded-lg shadow-sm border border-stone-200">
+                    <h2 class="text-2xl font-semibold text-stone-800 mb-6">Strategies to Beat Procrastination</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+
+                        <!-- Column 1 -->
+                        <div class="space-y-6">
+                            <div>
+                                <h3 class="text-xl font-semibold text-indigo-600">Boost Expectancy (Confidence)</h3>
+                                <ul class="list-disc list-inside space-y-2 mt-2 text-stone-700">
+                                    <li><strong>Break it down:</strong> Split large, daunting tasks into small, manageable steps.</li>
+                                    <li><strong>Success Spirals:</strong> Start with a tiny, easy win to build momentum.</li>
+                                    <li><strong>Visualize Success:</strong> Clearly imagine yourself completing the task.</li>
+                                    <li><strong>Get Knowledge:</strong> If you're stuck, learn more. Fear of the unknown kills confidence.</li>
+                                </ul>
+                            </div>
+
+                            <div>
+                                <h3 class="text-xl font-semibold text-indigo-600">Increase Value (Reward)</h3>
+                                <ul class="list-disc list-inside space-y-2 mt-2 text-stone-700">
+                                    <li><strong>Add Rewards:</strong> Pair an unpleasant task with something you enjoy (e.g., listen to a podcast while cleaning).</li>
+                                    <li><strong>Find Meaning:</strong> Connect the task to your larger goals and values. Why does it *really* matter?</li>
+                                    <li><strong>Gamify It:</strong> Turn the task into a game. Set a timer, challenge a friend, or track your "streak."</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <!-- Column 2 -->
+                        <div class="space-y-6">
+                            <div>
+                                <h3 class="text-xl font-semibold text-red-600">Lower Impulsiveness (Distraction)</h3>
+                                <ul class="list-disc list-inside space-y-2 mt-2 text-stone-700">
+                                    <li><strong>Remove Distractions:</strong> Put your phone in another room. Close unused tabs. Work in a quiet space.</li>
+                                    <li><strong>Timeboxing:</strong> Use techniques like the Pomodoro (25 min focus, 5 min break).</li>
+                                    <li><strong>Surf the Urge:</strong> When you feel the urge to switch tasks, just sit with it for 2 minutes. It will often pass.</li>
+                                </ul>
+                            </div>
+
+                            <div>
+                                <h3 class="text-xl font-semibold text-red-600">Shorten the Delay (Reward Time)</h3>
+                                <ul class="list-disc list-inside space-y-2 mt-2 text-stone-700">
+                                    <li><strong>Set Micro-Deadlines:</strong> Don't just have one final deadline. Create smaller ones for each step.</li>
+                                    <li><strong>Immediate Rewards:</strong> Give yourself a small, immediate reward for finishing a small piece of the task.</li>
+                                    <li><strong>Make Progress Visible:</strong> Use a checklist or progress bar to make the "end" feel closer.</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+
+            // --- Tab Logic ---
+            const tabsContainer = document.getElementById('tabs-container');
+            const contentContainer = document.getElementById('tab-content-container');
+
+            if (tabsContainer) {
+                const tabButtons = tabsContainer.querySelectorAll('.tab-btn');
+                const tabContents = contentContainer.querySelectorAll('.tab-content');
+
+                tabButtons.forEach(button => {
+                    button.addEventListener('click', () => {
+                        const tabId = button.getAttribute('data-tab');
+
+                        tabButtons.forEach(btn => btn.classList.remove('active'));
+                        button.classList.add('active');
+
+                        tabContents.forEach(content => {
+                            if (content.id === tabId) {
+                                content.classList.add('active');
+                            } else {
+                                content.classList.remove('active');
+                            }
+                        });
+                    });
+                });
+            }
+
+            // --- Chart.js Logic ---
+            const ctx = document.getElementById('motivation-chart');
+            if (ctx) {
+                const inputE = document.getElementById('input-e');
+                const inputV = document.getElementById('input-v');
+                const inputI = document.getElementById('input-i');
+                const inputD = document.getElementById('input-d');
+                const calcButton = document.getElementById('calculate-btn');
+                const aiButton = document.getElementById('ai-strategy-btn');
+                const aiSection = document.getElementById('ai-strategy-section');
+                const aiLoading = document.getElementById('ai-loading');
+                const aiResults = document.getElementById('ai-results');
+
+                let motivationChart;
+
+                const getValidValue = (input) => {
+                    let val = parseFloat(input.value);
+                    if (isNaN(val) || val < 10) {
+                        val = 10;
+                        input.value = '10'; // Correct input field
+                    }
+                    if (val > 100) {
+                        val = 100;
+                        input.value = '100'; // Correct input field
+                    }
+                    return val / 100.0;
+                };
+
+                const calculateMotivation = () => {
+                    const E = getValidValue(inputE);
+                    const V = getValidValue(inputV);
+                    const I = getValidValue(inputI);
+                    const D = getValidValue(inputD);
+
+                    // The core equation: (E * V) / (I * D)
+                    // Add a small epsilon to denominator to prevent division by zero,
+                    // although our min input (0.1) already prevents this.
+                    const denominator = (I * D) + 0.0001;
+                    const score = (E * V) / denominator;
+
+                    return score;
+                };
+
+                const updateChart = () => {
+                    const score = calculateMotivation();
+
+                    // Show/hide AI button based on score
+                    if (score < 1.0) { // Tipping point or low
+                        aiButton.classList.remove('hidden');
+                    } else {
+                        aiButton.classList.add('hidden');
+                        aiSection.classList.add('hidden'); // Also hide results if score is good
+                    }
+
+                    // Determine color based on score
+                    let barColor = 'rgba(239, 68, 68, 0.7)'; // Red (Low)
+                    if (score >= 5.0) {
+                        barColor = 'rgba(16, 185, 129, 0.7)'; // Emerald (High)
+                    } else if (score >= 1.0) {
+                        barColor = 'rgba(59, 130, 246, 0.7)'; // Blue (Moderate)
+                    } else if (score >= 0.5) {
+                        barColor = 'rgba(234, 179, 8, 0.7)'; // Yellow (Tipping Point)
+                    }
+
+                    if (motivationChart) {
+                        motivationChart.data.datasets[0].data[0] = score.toFixed(2);
+                        motivationChart.data.datasets[0].backgroundColor[0] = barColor;
+                        motivationChart.data.datasets[0].borderColor[0] = barColor.replace('0.7', '1');
+
+                        // Adjust Y-axis max
+                        let newMax = 10;
+                        if (score > 8) {
+                            newMax = Math.ceil(score + 2); // Give a little headroom
+                        }
+                        motivationChart.options.scales.y.max = newMax;
+
+                        motivationChart.update();
+                    }
+                };
+
+                // Initialize chart
+                motivationChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Motivation Score'],
+                        datasets: [{
+                            label: 'Motivation Score',
+                            data: [0], // Initial data
+                            backgroundColor: ['rgba(59, 130, 246, 0.7)'],
+                            borderColor: ['rgba(59, 130, 246, 1)'],
+                            borderWidth: 1,
+                            maxBarThickness: 100
+                        }]
+                    },
+                    options: {
+                        indexAxis: 'x',
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return `Score: ${context.parsed.y.toFixed(2)}`;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: 'Motivation Score'
+                                },
+                                // Dynamically adjust max based on score, but set a reasonable default max
+                                max: 10
+                            },
+                            x: {
+                                ticks: {
+                                    display: false
+                                }
+                            }
+                        }
+                    }
+                });
+
+                // --- Gemini API Call Logic ---
+                const fetchAIStrategies = async (e, v, i, d) => {
+                    aiSection.classList.remove('hidden');
+                    aiLoading.classList.remove('hidden');
+                    aiResults.classList.add('hidden');
+                    aiResults.innerHTML = ''; // Clear old results
+
+                    const systemPrompt = "You are an expert productivity coach specializing in the Procrastination Equation (Motivation = (Expectancy * Value) / (Impulsiveness * Delay)). A user is struggling with a task. Their inputs show: " + e + "% confidence (Expectancy), " + v + "% enjoyment (Value), " + i + "% distractibility (Impulsiveness), and " + d + "% delay for the reward (Delay). This has resulted in a low motivation score. \n\nYour task is to provide 3-5 concise, actionable strategies. Critically, you **must** target their weakest variables. For example, if 'Expectancy' is very low, focus on building confidence and breaking the task down. If 'Impulsiveness' is very high, focus on managing distractions. If 'Value' is low, focus on finding the reward. \n\nReturn your answer as a simple, unnumbered list, with each strategy starting with a hyphen (e.g., '- Do this...'). Do not add any introductory or concluding text. Just the list.";
+
+                    const userQuery = `My task profile: Expectancy: ${e}%, Value: ${v}%, Impulsiveness: ${i}%, Delay: ${d}%. Give me a list of 3-5 strategies targeting my weakest points.`;
+
+                    const apiKey = ""; // Leave empty
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+
+                    const payload = {
+                        contents: [{ parts: [{ text: userQuery }] }],
+                        systemInstruction: {
+                            parts: [{ text: systemPrompt }]
+                        },
+                    };
+
+                    let retries = 3;
+                    let delay = 1000;
+                    let response;
+
+                    while (retries > 0) {
+                        try {
+                            response = await fetch(apiUrl, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(payload)
+                            });
+
+                            if (response.ok) {
+                                const result = await response.json();
+                                const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+
+                                if (text) {
+                                    return text;
+                                } else {
+                                    throw new Error('No text returned from API.');
+                                }
+                            } else if (response.status === 429 || response.status >= 500) {
+                                // Throttling or server error, wait and retry
+                                await new Promise(resolve => setTimeout(resolve, delay));
+                                delay *= 2; // Exponential backoff
+                                retries--;
+                            } else {
+                                // Other client-side error
+                                throw new Error(`API request failed with status ${response.status}`);
+                            }
+                        } catch (error) {
+                            console.error(error);
+                            retries--;
+                            if (retries === 0) {
+                                return "Error: Unable to fetch strategies. Please try again later.";
+                            }
+                            await new Promise(resolve => setTimeout(resolve, delay));
+                            delay *= 2;
+                        }
+                    }
+                    return "Error: Unable to fetch strategies after multiple retries.";
+                };
+
+                const displayAIStrategies = (text) => {
+                    aiLoading.classList.add('hidden');
+
+                    // Sanitize text
+                    const safeText = text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+                    const strategies = safeText.split('\n').filter(s => s.trim().startsWith('-') || s.trim().startsWith('*'));
+
+                    if (strategies.length > 0) {
+                        const ul = document.createElement('ul');
+                        ul.className = 'list-disc list-inside space-y-2 text-indigo-800';
+                        strategies.forEach(s => {
+                            const li = document.createElement('li');
+                            li.textContent = s.substring(s.indexOf(s.trim().charAt(0)) + 1).trim(); // Remove the hyphen/asterisk
+                            ul.appendChild(li);
+                        });
+                        aiResults.appendChild(ul);
+                    } else {
+                        // Fallback for non-list format or error
+                        const p = document.createElement('p');
+                        p.className = 'text-indigo-800 whitespace-pre-wrap';
+                        p.textContent = safeText;
+                        aiResults.appendChild(p);
+                    }
+
+                    aiResults.classList.remove('hidden');
+                };
+
+
+                // Add event listener to the new button
+                calcButton.addEventListener('click', updateChart);
+
+                aiButton.addEventListener('click', async () => {
+                    // Get current percentages
+                    const e = document.getElementById('input-e').value;
+                    const v = document.getElementById('input-v').value;
+                    const i = document.getElementById('input-i').value;
+                    const d = document.getElementById('input-d').value;
+
+                    const strategiesText = await fetchAIStrategies(e, v, i, d);
+                    displayAIStrategies(strategiesText);
+                });
+
+                // Also run validation on change to fix numbers if they are out of bounds
+                [inputE, inputV, inputI, inputD].forEach(input => {
+                     input.addEventListener('change', () => {
+                        getValidValue(input); // This will correct the value in the box
+                    });
+                });
+
+                // Run once on load to show initial chart
+                updateChart();
+            }
+        });
+    </script>
+</body>
+</html>
+
